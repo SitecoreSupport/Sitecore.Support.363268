@@ -10,12 +10,33 @@ namespace Sitecore.Support.ContentSearch.SolrProvider.Pipelines.FormatQueryField
 {
     public class ApplyFieldMappingRule : Sitecore.ContentSearch.SolrProvider.Pipelines.FormatQueryFieldValue.ApplyFieldMappingRule
     {
+        private static Regex defaultRegex;
+
         public ApplyFieldMappingRule()
         {
+            if (defaultRegex == null)
+            {
+                HashSet<string> escapeCharacterSet = GetEscapeCharacterSet();
+                StringBuilder stringBuilder = new StringBuilder(50);
+                foreach (string item in escapeCharacterSet)
+                {
+                    stringBuilder.AppendFormat("\\{0}+|", item);
+                }
+
+                string text = stringBuilder.ToString();
+
+                defaultRegex = new Regex(text.Remove(text.Length - 1));
+            }
         }
         
         protected override string Escape(string fieldValue, string escapedValue, bool includeExistingSpecialCharacter, Collection<string> excludeEscapeCharacters, Collection<string> additionalEscapeCharacters = null)
         {
+            // Reuse default regex instance if no custom characters are included or excluded
+            if (additionalEscapeCharacters == null && excludeEscapeCharacters == null)
+            {
+                return defaultRegex.Replace(fieldValue, (Match match) => escapedValue + (includeExistingSpecialCharacter ? match.Value : ""));
+            }
+
             HashSet<string> escapeCharacterSet = GetEscapeCharacterSet();
             StringBuilder stringBuilder = new StringBuilder(50);
             if (additionalEscapeCharacters != null)
