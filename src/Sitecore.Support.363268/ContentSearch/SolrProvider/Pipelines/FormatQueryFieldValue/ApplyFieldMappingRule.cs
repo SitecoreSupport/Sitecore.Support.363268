@@ -12,6 +12,8 @@ namespace Sitecore.Support.ContentSearch.SolrProvider.Pipelines.FormatQueryField
     {
         private static Regex defaultRegex;
 
+        private static Regex regexWithHyphen;
+
         public ApplyFieldMappingRule()
         {
             if (defaultRegex == null)
@@ -22,10 +24,12 @@ namespace Sitecore.Support.ContentSearch.SolrProvider.Pipelines.FormatQueryField
                 {
                     stringBuilder.AppendFormat("\\{0}+|", item);
                 }
-
+                
                 string text = stringBuilder.ToString();
-
                 defaultRegex = new Regex(text.Remove(text.Length - 1));
+
+                string textHyphen = stringBuilder.AppendFormat("\\{0}+|", "-").ToString();
+                regexWithHyphen = new Regex(textHyphen.Remove(textHyphen.Length - 1));
             }
         }
         
@@ -36,6 +40,10 @@ namespace Sitecore.Support.ContentSearch.SolrProvider.Pipelines.FormatQueryField
             {
                 return defaultRegex.Replace(fieldValue, (Match match) => escapedValue + (includeExistingSpecialCharacter ? match.Value : ""));
             }
+            else if (excludeEscapeCharacters == null && additionalEscapeCharacters != null && additionalEscapeCharacters.Count == 1 && additionalEscapeCharacters[0] == "-")
+            {
+                return regexWithHyphen.Replace(fieldValue, (Match match) => escapedValue + (includeExistingSpecialCharacter ? match.Value : ""));
+            }
 
             HashSet<string> escapeCharacterSet = GetEscapeCharacterSet();
             StringBuilder stringBuilder = new StringBuilder(50);
@@ -43,14 +51,17 @@ namespace Sitecore.Support.ContentSearch.SolrProvider.Pipelines.FormatQueryField
             {
                 escapeCharacterSet.UnionWith(additionalEscapeCharacters);
             }
+
             if (excludeEscapeCharacters != null)
             {
                 escapeCharacterSet.ExceptWith(excludeEscapeCharacters);
             }
+
             foreach (string item in escapeCharacterSet)
             {
                 stringBuilder.AppendFormat("\\{0}+|", item);
             }
+
             string text = stringBuilder.ToString();
             
             return new Regex(text.Remove(text.Length - 1)).Replace(fieldValue, (Match match) => escapedValue + (includeExistingSpecialCharacter ? match.Value : ""));
